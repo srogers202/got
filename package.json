@@ -15,7 +15,7 @@
 		"prepublishOnly": "npm run build"
 	},
 	"files": [
-		"dist"
+		"source"
 	],
 	"keywords": [
 		"http",
