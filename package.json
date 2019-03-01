@@ -11,11 +11,11 @@
 	"scripts": {
 		"test": "xo && nyc ava",
 		"release": "np",
-		"build": "del-cli dist && tsc",
+		"build": "npx del-cli dist && npx tsc",
 		"prepublishOnly": "npm run build"
 	},
 	"files": [
-		"source"
+		"dist"
 	],
 	"keywords": [
 		"http",
