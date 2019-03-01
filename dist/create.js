@@ -1,0 +1,70 @@
+'use strict';
+const errors = require('./errors');
+const asStream = require('./as-stream').default;
+const asPromise = require('./as-promise').default;
+const normalizeArguments = require('./normalize-arguments');
+const { default: merge, mergeOptions, mergeInstances } = require('./merge');
+const deepFreeze = require('./utils/deep-freeze').default;
+const getPromiseOrStream = options => options.stream ? asStream(options) : asPromise(options);
+const aliases = [
+    'get',
+    'post',
+    'put',
+    'patch',
+    'head',
+    'delete'
+];
+const create = defaults => {
+    defaults = merge({}, defaults);
+    normalizeArguments.preNormalize(defaults.options);
+    if (!defaults.handler) {
+        // This can't be getPromiseOrStream, because when merging
+        // the chain would stop at this point and no further handlers would be called.
+        defaults.handler = (options, next) => next(options);
+    }
+    function got(url, options) {
+        try {
+            return defaults.handler(normalizeArguments(url, options, defaults), getPromiseOrStream);
+        }
+        catch (error) {
+            if (options && options.stream) {
+                throw error;
+            }
+            else {
+                return Promise.reject(error);
+            }
+        }
+    }
+    got.create = create;
+    got.extend = options => {
+        let mutableDefaults;
+        if (options && Reflect.has(options, 'mutableDefaults')) {
+            mutableDefaults = options.mutableDefaults;
+            delete options.mutableDefaults;
+        }
+        else {
+            mutableDefaults = defaults.mutableDefaults;
+        }
+        return create({
+            options: mergeOptions(defaults.options, options),
+            handler: defaults.handler,
+            mutableDefaults
+        });
+    };
+    got.mergeInstances = (...args) => create(mergeInstances(args));
+    got.stream = (url, options) => got(url, Object.assign({}, options, { stream: true }));
+    for (const method of aliases) {
+        got[method] = (url, options) => got(url, Object.assign({}, options, { method }));
+        got.stream[method] = (url, options) => got.stream(url, Object.assign({}, options, { method }));
+    }
+    Object.assign(got, Object.assign({}, errors, { mergeOptions }));
+    Object.defineProperty(got, 'defaults', {
+        value: defaults.mutableDefaults ? defaults : deepFreeze(defaults),
+        writable: defaults.mutableDefaults,
+        configurable: defaults.mutableDefaults,
+        enumerable: true
+    });
+    return got;
+};
+module.exports = create;
+//# sourceMappingURL=create.js.map
